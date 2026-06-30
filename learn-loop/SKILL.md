@@ -51,11 +51,20 @@ On the offer: if the user says yes, write the current note, then explain the new
 - **Misconceptions** — things stated wrong, not just incomplete.
 - **Gaps** — things missing or hand-waved.
 - **Shaky spots** — places where they hedged or the model is fragile.
+- **Unjustified load-bearing claims** — see below.
 
 Be honest and specific. Don't praise an explanation that has holes — flagging a real gap is more useful than encouragement.
 
-- **If it's incorrect or incomplete:** point to exactly what's wrong or missing and explain just those pieces (not the whole topic again). Use a fresh analogy or angle for what didn't land — repeating the same framing rarely fixes a gap. Then stop and wait. The user will either ask more questions or take another run at explaining — react per A/B again.
-- **If it's correct and complete:** confirm it plainly, then **ask if they'd like to produce the note.** Don't write it unprompted — wait for their yes.
+**Probe unjustified claims.** Scan the explanation for specific claims (numbers, thresholds, named choices — e.g. "water at 208°F", "~67% of data") that *support the main idea* but were stated without justification. For each one found:
+- Ask the user to justify it — a direct "why 208°F and not 212°F?" / "why 67%, not 50% or 80%?" — rather than just noting it as a gap.
+- Skip claims the user already justified inline, and minor claims that don't bear on the core idea.
+- Treat their answer like any other reply: if correct, acknowledge and move to the next unjustified claim (or finish verification); if wrong or they can't justify it, **explain the why yourself, then continue** — don't block on it or make them guess repeatedly.
+- Work through flagged claims one at a time, not all at once — this is still a loop, not a quiz dump.
+
+This probing only happens during explain-back (B), never during the initial explanation (step 2/3) or while answering the user's own questions (A).
+
+- **If it's incorrect, incomplete, or has unjustified load-bearing claims still unresolved:** point to exactly what's wrong, missing, or unjustified, and address just those pieces (not the whole topic again). Use a fresh analogy or angle for what didn't land. Then stop and wait. The user will either ask more questions or take another run at explaining — react per A/B again.
+- **If it's correct, complete, and all load-bearing claims are justified (by the user or, after probing, by you):** confirm it plainly, then **ask if they'd like to produce the note.** Don't write it unprompted — wait for their yes.
 
 Telling A from B: an explanation asserts how the thing works ("so we take a set and split it..."); a question asks ("do we sample with replacement?"). When genuinely ambiguous, treat it as a question and answer it — that errs toward not rushing them.
 
