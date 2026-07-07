@@ -66,11 +66,22 @@ Rules:
 - Name tests for the behavior they assert, not the function mechanics (`returns_empty_for_no_matches`, `is_idempotent_under_replay`), so the suite reads as documentation.
 - **Consider whether an integration test is required.** Unit tests pin core logic; they do not prove the shell wires real I/O correctly. When the unit crosses a real boundary (DB schema, external API contract, serialization, transaction semantics, concurrency), call it out and propose an integration test. State explicitly when you judge one is *not* needed and why.
 
+### Two-pass testing for non-trivial units
+
+For **non-trivial** units, write tests in two distinct passes to break correlated blind spots — the author of the code should not be the sole author of its tests:
+
+1. **Independent spec pass.** Derive tests from the specification/contract *without* looking at the implementation. This catches spec-conformance failures that an implementation-aware view would rubber-stamp.
+2. **Implementation-aware edge pass.** Then read the implementation and add tests for edges only visible once the code exists (branch boundaries, off-by-one, error paths, resource cleanup).
+
+These are complementary: the independent pass alone misses implementation-specific edges; the impl-aware pass alone shares the coding blind spot. Note that if both passes read the *same ambiguous spec*, a specification-level error can still slip through both — flag genuine spec ambiguity rather than silently resolving it.
+
+A unit is **non-trivial** when any hold: it branches or has edge logic; it carries a behavioral requirement beyond a simple I/O table (idempotency, ordering, retry-safety, limits); it touches money, security, or concurrency; or a failure has real cost. **Trivial** units (pure pass-throughs, simple getters, branchless glue) get the normal single pass — the two-pass regime is not worth the effort there.
+
 ## Working rhythm
 
 1. Sketch the shape; identify the core vs. shell split.
 2. Spot SRP / internal-DI forks **before** writing — if present, stop, present pros/cons with a recommendation, and ask.
 3. Write the core (pure), then the shell (injected ports).
-4. Write tests as you go: behavior coverage first, then the named tests for extra behavioral requirements.
+4. Write tests as you go: behavior coverage first, then the named tests for extra behavioral requirements. For non-trivial units, do the independent spec pass before reading the implementation, then the implementation-aware edge pass.
 5. Name the integration-test decision out loud.
 6. Re-read with fresh eyes for magic numbers, swallowed errors, and comments that should be names.
