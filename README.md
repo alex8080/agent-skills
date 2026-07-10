@@ -17,3 +17,9 @@ The flow: the agent explains a topic, waits for the user to ask questions or att
 Engineering discipline for writing production code in any language. Enforces single responsibility, no magic numbers, functional core / imperative shell structure, principled error handling, immutability, and tests-as-specification coverage.
 
 Two design decisions — SRP violations and internal dependency injection — are never resolved silently. The agent stops, presents concrete pros and cons with a recommendation, and asks the user. All other principles are applied directly.
+
+### `acceptance-spec`
+
+Drives a feature to a complete, gap-free acceptance criteria specification *before* any implementation begins. Turns a PRD, ticket, prose description, or rough criteria into a rigorous spec — the deliverable is requirements, not tests or code.
+
+The core discipline is *never assume, always ask*: any gap or ambiguity becomes a question to the user, never a plausible default. The agent drafts spec-level Given/When/Then, then runs a two-layer coverage gate — a breadth checklist (did we forget a category: actors, error paths, auth, concurrency, failure states?) and load-bearing probing (is each criterion actually complete, or does it rest on an unjustified claim?). Nothing proceeds downstream until the user explicitly approves the spec, which is saved to `docs/spec/` structured so a later agent can derive tests from it.
