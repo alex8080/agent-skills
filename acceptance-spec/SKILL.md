@@ -44,7 +44,7 @@ Mark anything you inferred rather than were told, so it's visible for approval.
 
 ### 3. The layered coverage gate
 
-Before showing the spec as "complete," run both layers. This is what enforces "no gaps."
+Before showing the spec as "complete," run all three layers. This is what enforces "no gaps."
 
 **Layer 1 — breadth checklist (did we forget a category?).** Run this fixed list against the spec:
 - Every actor / role covered?
@@ -69,11 +69,20 @@ Example: criterion says *"reject invalid transfers."* Probe:
 - Is the rejection surfaced to the actor? Logged? Audited?
 - Is "reject" synchronous or deferred?
 
-Every probe whose answer isn't already in the spec becomes a **question to the user** (per the never-assume rule), or a recommendation for them to confirm. The checklist finds forgotten breadth; probing finds shallow depth. Both run; neither substitutes for the other.
+Every probe whose answer isn't already in the spec becomes a **question to the user** (per the never-assume rule), or a recommendation for them to confirm. The checklist finds forgotten breadth; probing finds shallow depth.
+
+**Layer 3 — cross-scenario consistency (do the scenarios contradict or leave holes between them?).** Layers 1–2 audit scenarios one at a time; contradictions live *between* them. Two checks:
+
+- **Pairwise conflict:** for each pair of scenarios that share a state, signal, or observable (the same list, flag, message, response), check their Givens can't both hold while their Thens conflict — and that neither scenario's Then quietly forecloses the other's Given.
+- **State-space sweep:** for each trigger, enumerate the small state combinations behind it (e.g. due? × tagged? × cached?) and confirm every combination reaches exactly one defined outcome. A combination no scenario claims is a hole; one that two scenarios claim differently is a contradiction.
+
+Real example of what this layer exists to catch: a backend scenario allowed "empty tag list" to mean *either* nothing due *or* due-but-untagged, while a UI scenario treated "empty tag list" as *proof* nothing was due — individually fine, jointly making due-but-untagged cards unreviewable. Layers 1–2 passed it; only the combination check would have caught it.
+
+All three layers run; none substitutes for another.
 
 ### 4. Surface gaps and resolve with the user
 
-Present what the two layers found: uncovered categories, unjustified claims, open questions, and any inferences you flagged. For each, either ask the user directly or make a recommendation for them to accept or reject. Loop with the user until nothing is unresolved.
+Present what the three layers found: uncovered categories, unjustified claims, cross-scenario conflicts or unclaimed state combinations, open questions, and any inferences you flagged. For each, either ask the user directly or make a recommendation for them to accept or reject. Loop with the user until nothing is unresolved.
 
 The user may, after your initial draft, ask you to **co-write** — work through criteria together interactively rather than review-and-return. Support both modes; the authoring model is "agent drafts, user approves, and may pull you into co-writing at any point."
 
