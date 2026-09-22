@@ -24,6 +24,8 @@ If the project's CLAUDE.md does not specify the verification commands or test-la
 
 Throughout this document, "**the verification suite**" means exactly those commands as defined in the project's CLAUDE.md.
 
+**`$AGENT_SKILLS`** below means this repo's checkout root (`/home/alex/Depot/agent-skills`). Its helpers run against the *target* repo and impose no toolchain on it. Before spawning anything, capture the baseline: `BASELINE=$(git rev-parse HEAD)`.
+
 ## Roles are separated on purpose — do not let them blur
 
 1. **Implement** — production code + co-located unit tests ONLY (per the project's test-layer convention). This agent MUST NOT write acceptance tests (nothing new in the acceptance-test location, though it may extend shared test fakes/fixtures if a new interface method forces it). Keeping tests out of the implementer's hands prevents tests that merely re-assert whatever the code happens to do.
@@ -34,14 +36,24 @@ Throughout this document, "**the verification suite**" means exactly those comma
 
 - **Coding agents (1 and 2) MUST invoke `/disciplined-coding-guidance` first** and follow it (SRP, no magic numbers → named constants, functional-core/imperative-shell split, error handling, immutability, test-as-specification).
 - A sub-agent cannot ask the user. So instruct each: when you hit a design tradeoff the skill says isn't yours to decide unilaterally (SRP violation, internal DI, a new interface method, changed error/atomicity semantics), pick the option most consistent with existing codebase conventions, implement it, and **document the decision + reasoning in your final report** for human review.
-- **Definition of done for every coding stage:** every command in the project's verification suite runs clean/green. **Do NOT commit** — leave changes in the working tree.
+- **Definition of done for every coding stage:** every command in the project's verification suite runs clean/green. **Do NOT commit** — leave changes in the working tree. You enforce this mechanically with `stage_guard.py` after each stage; an agent's word is not the check.
 - Update the project docs named in its CLAUDE.md where the change alters an endpoint, interface, or subsystem status.
 
 ## Your job as orchestrator — this is where the value is, not the fan-out
 
 ### Step 0 — test-layer triage (before spawning agent 1)
 
-After reading the spec and BEFORE launching the implementer, map **every** spec `### Scenario:` to a test layer and target file, per the project's test-split convention (root `CLAUDE.md`, plus any nested `CLAUDE.md` the spec touches):
+After reading the spec and BEFORE launching the implementer, map **every** spec `### Scenario:` to a test layer and target file, per the project's test-split convention (root `CLAUDE.md`, plus any nested `CLAUDE.md` the spec touches).
+
+Enumerate them first — do not eyeball the spec:
+
+```
+python3 "$AGENT_SKILLS/scripts/impl-pipeline/scenarios.py" <spec>
+```
+
+> Contract: prints one scenario title per line in document order. Exit 0 ≥1 found · 1 none or duplicate titles · 2 unreadable. Non-zero means wrong file or a spec that breaks the scenario convention — resolve before spawning.
+
+Map each scenario to:
 
 - **(a) new observable input→output behavior** → acceptance test (through the public surface the project's CLAUDE.md names) — owned by agent 2;
 - **(b) pure-logic edge case** (parsing, counting, boundaries, normalization) → unit test — owned by agent 1;
@@ -49,13 +61,45 @@ After reading the spec and BEFORE launching the implementer, map **every** spec 
 
 Rule of thumb: if a scenario's expected outcome is only observable by inspecting *how many calls happened* or *how a string was parsed*, it's a unit test, not acceptance. Contract/wiring/auth/UX flows are acceptance.
 
-Feed the mapping into **both** agents' prompts: agent 1 gets its unit-test rows (and must not write the acceptance rows); agent 2 gets the full mapping and must return a scenario→`file::test_name` traceability table against it, covering ALL scenarios (including the mapped-to-existing ones).
+Feed the mapping into **both** agents' prompts: agent 1 gets its unit-test rows (and must not write the acceptance rows); agent 2 gets the full mapping and must return a traceability table covering ALL scenarios (including the mapped-to-existing ones), as a markdown pipe table with exactly these columns:
+
+```
+| Scenario | Layer | Target |
+| --- | --- | --- |
+| <exact ### Scenario: text> | acceptance|unit|existing | <file>::<test_name> |
+```
+
+Verify it rather than reading it:
+
+```
+python3 "$AGENT_SKILLS/scripts/impl-pipeline/trace_check.py" <spec> <table.md>
+```
+
+> Contract: exit 0 every scenario traced once with valid layer and target · 1 gaps, dupes, stale rows, or bad layer/target (all listed on stderr) · 2 unreadable input. Exit 1 goes back to agent 2 — do not paper over it yourself.
 
 ### Between and after each stage
 
 Run the three agents **sequentially** (each depends on the prior). Between and after each stage:
 
 - **Re-verify green yourself.** Do not trust an agent's "all tests pass" claim — run the project's verification suite and read the real output before proceeding. IDE/language-server diagnostics injected mid-run are often stale mid-refactor state; the authoritative signal is a clean verification run you launched. If a background agent stalls on an API error mid-task, resume it via SendMessage (its context is intact) rather than restarting.
+- **Enforce the lane.** Roles blur silently; check the file scope before reading any report. Substitute the acceptance-test and source locations from the project's CLAUDE.md:
+
+  ```
+  # after agent 1 (implement) — must not have written acceptance tests
+  python3 "$AGENT_SKILLS/scripts/impl-pipeline/stage_guard.py" \
+    --baseline-sha "$BASELINE" --label implement --deny '<acceptance-test-location>/*'
+
+  # after agent 2 — acceptance tests + shared fixtures only, no production source
+  python3 "$AGENT_SKILLS/scripts/impl-pipeline/stage_guard.py" \
+    --baseline-sha "$BASELINE" --label acceptance \
+    --allow '<acceptance-test-location>/*' --allow '<shared-fixtures-location>/*'
+
+  # after agent 3 (review) — review only, nothing may change
+  python3 "$AGENT_SKILLS/scripts/impl-pipeline/stage_guard.py" \
+    --baseline-sha "$BASELINE" --label review --allow '<nothing>'
+  ```
+
+  > Contract: exit 0 in-lane and uncommitted · 1 violation (each listed on stderr) · 2 git/usage error. Globs are fnmatch over repo-relative paths; `*` spans `/`. A violation is a role breach — report it, don't absorb it.
 - **Relay flagged interpretation risks forward.** The implementer will flag spec ambiguities it had to resolve (invented schemas, changed skip/atomicity semantics, occurrence-vs-distinct counting, etc.). Pass those explicitly to the acceptance-test agent and tell it to read the implementation and assert the *implemented* behavior on those points — never independently invent a conflicting shape, and flag (not silently fix) any genuine spec divergence.
 - **Re-check the Step 0 triage before launching agent 2.** The implementer's report may reveal a scenario landed at a different layer than triaged (e.g. logic that ended up in a handler, or a new policy worth pinning); update the mapping and hand agent 2 the revised version, noting what changed and why.
 
